@@ -2,47 +2,46 @@ import { siteConfig } from "../siteConfig";
 import { locales, defaultLocale } from "../../lib/i18n";
 import { pageOrder } from "../../lib/pageContent";
 
-// Clean, nicely-formatted /sitemap.xml with line breaks so it's easy to read
-// in a browser, and fully standard for Google Search Console.
+// Simple, clean /sitemap.xml — one plain block per URL.
+// Standard format that Google Search Console reads without any trouble.
 export const dynamic = "force-static";
+
+// Date only (YYYY-MM-DD), like most sitemaps use.
+function today() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function urlBlock(loc, changefreq, priority, lastmod) {
+  return `<url>
+<loc>${loc}</loc>
+<lastmod>${lastmod}</lastmod>
+<changefreq>${changefreq}</changefreq>
+<priority>${priority}</priority>
+</url>`;
+}
 
 function buildUrls() {
   const base = siteConfig.url;
-  const now = new Date().toISOString();
+  const lastmod = today();
   const blocks = [];
 
-  // Homepages (all languages) with hreflang alternates
+  // 1) Language home pages
   locales.forEach((l) => {
-    const alts = locales
-      .map((a) => `    <xhtml:link rel="alternate" hreflang="${a}" href="${base}/${a}"/>`)
-      .join("\n");
     blocks.push(
-`  <url>
-    <loc>${base}/${l}</loc>
-${alts}
-    <lastmod>${now}</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>${l === defaultLocale ? "1.0" : "0.8"}</priority>
-  </url>`
+      urlBlock(
+        `${base}/${l}`,
+        l === defaultLocale ? "weekly" : "monthly",
+        l === defaultLocale ? "1.0" : "0.9",
+        lastmod
+      )
     );
   });
 
-  // Info pages + human sitemap page per language
+  // 2) Info pages + human sitemap, for every language
   const extra = [...pageOrder, "sitemap"];
-  extra.forEach((page) => {
-    locales.forEach((l) => {
-      const alts = locales
-        .map((a) => `    <xhtml:link rel="alternate" hreflang="${a}" href="${base}/${a}/${page}"/>`)
-        .join("\n");
-      blocks.push(
-`  <url>
-    <loc>${base}/${l}/${page}</loc>
-${alts}
-    <lastmod>${now}</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.4</priority>
-  </url>`
-      );
+  locales.forEach((l) => {
+    extra.forEach((page) => {
+      blocks.push(urlBlock(`${base}/${l}/${page}`, "monthly", "0.7", lastmod));
     });
   });
 
@@ -51,7 +50,7 @@ ${alts}
 
 export function GET() {
   const body = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${buildUrls()}
 </urlset>`;
 
